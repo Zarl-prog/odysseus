@@ -9722,6 +9722,7 @@ details a:hover {
 .memory-modal-content {
   width: min(560px, 90vw);
   max-height: 78vh;
+  height: 78vh;
   font-size: 12px;
   overflow: hidden;   /* clip both axes; the inner .memory-modal-body owns scrolling.
                          (overflow-x alone promotes overflow-y to `auto` → a stray vertical scrollbar) */
@@ -17637,6 +17638,7 @@ body.gallery-selecting .gallery-dl-btn,
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: 85vh;
 }
 #cookbook-modal .modal-header {
   flex: 0 0 auto;
