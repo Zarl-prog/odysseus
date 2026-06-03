@@ -224,8 +224,12 @@ export function makeWindowDraggable(modal, options = {}) {
     if (Math.abs(cx - startX) > MOVE_THRESHOLD || Math.abs(cy - startY) > MOVE_THRESHOLD) {
       movedDuringDrag = true;
     }
-    content.style.left = (startLeft + cx - startX) + 'px';
-    content.style.top = (startTop + cy - startY) + 'px';
+    const maxLeft = Math.max(0, window.innerWidth - content.offsetWidth);
+    const newLeft = Math.max(0, Math.min(startLeft + cx - startX, maxLeft));
+    const maxTop = Math.max(0, window.innerHeight - content.offsetHeight);
+    const newTop = Math.max(0, Math.min(startTop + cy - startY, maxTop));
+    content.style.left = newLeft + 'px';
+    content.style.top = newTop + 'px';
     // Corner guard: in the top fullscreen band the side docks stay OFF, so a
     // top corner only ever snaps to fullscreen — never the corner hybrid.
     const inTopBand = cy <= SNAP_PX;
@@ -271,17 +275,20 @@ export function makeWindowDraggable(modal, options = {}) {
     }
   };
 
-  header.addEventListener('mousedown', (e) => {
+  header.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse') return;
     if (mobileSkip > 0 && window.innerWidth <= mobileSkip) return;
     if (skipSelector && e.target.closest(skipSelector)) return;
     e.preventDefault();
     movedDuringDrag = false;
     _startDrag(e.clientX, e.clientY);
+    header.setPointerCapture(e.pointerId);
     const onMove = (ev) => _onMove(ev.clientX, ev.clientY);
     const onUp = (ev) => {
       _onEnd(ev.clientX, ev.clientY);
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
+      header.removeEventListener('pointermove', onMove);
+      header.removeEventListener('pointerup', onUp);
+      header.removeEventListener('pointercancel', onUp);
       // If the pointer actually moved, swallow the synthetic click the
       // browser fires next — otherwise a header click handler (collapse
       // expanded card / "back to list") runs and undoes the drag intent.
@@ -295,8 +302,9 @@ export function makeWindowDraggable(modal, options = {}) {
         setTimeout(() => header.removeEventListener('click', swallow, { capture: true }), 50);
       }
     };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
+    header.addEventListener('pointermove', onMove);
+    header.addEventListener('pointerup', onUp, { once: true });
+    header.addEventListener('pointercancel', onUp, { once: true });
   });
 
   if (enableTouch) {
@@ -323,4 +331,18 @@ export function makeWindowDraggable(modal, options = {}) {
       document.addEventListener('touchcancel', onEnd);
     }, { passive: true });
   }
+
+  // Window resize: re-clamp modal position so it doesn't end up off-screen
+  // after the user resizes the browser.
+  window.addEventListener('resize', () => {
+    if (fsClass && modal && modal.classList.contains(fsClass)) return;
+    if (modal && (modal.classList.contains('modal-right-docked') || modal.classList.contains('modal-left-docked'))) return;
+    const curLeft = parseFloat(content.style.left);
+    const curTop = parseFloat(content.style.top);
+    if (!Number.isFinite(curLeft) && !Number.isFinite(curTop)) return;
+    const maxLeft = Math.max(0, window.innerWidth - content.offsetWidth);
+    const maxTop = Math.max(0, window.innerHeight - content.offsetHeight);
+    content.style.left = Math.max(0, Math.min(curLeft || 0, maxLeft)) + 'px';
+    content.style.top = Math.max(0, Math.min(curTop || 0, maxTop)) + 'px';
+  });
 }
