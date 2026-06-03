@@ -6,7 +6,7 @@ import uuid
 import logging
 from typing import Dict, Any, Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from core.database import SessionLocal, Note
@@ -473,6 +473,7 @@ def setup_note_routes(task_scheduler=None):
         request: Request,
         archived: Optional[bool] = None,
         label: Optional[str] = None,
+        note_type: Optional[str] = Query(None),
     ):
         user = _owner(request)
         db = SessionLocal()
@@ -486,6 +487,8 @@ def setup_note_routes(task_scheduler=None):
                 q = q.filter(Note.archived == False)
             if label:
                 q = q.filter(Note.label == label)
+            if note_type:
+                q = q.filter(Note.note_type == note_type)
             # Archived view: most recently archived first. Active view: pin + manual order.
             if archived is True:
                 notes = q.order_by(Note.updated_at.desc()).all()
